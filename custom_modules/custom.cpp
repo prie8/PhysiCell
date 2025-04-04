@@ -67,504 +67,540 @@
 
 #include "./custom.h"
 
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Global variables for substrate and cell type indices
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+int glucose_substrate_index = -1;
+int biofilm_cell_type_index = -1;
+int probiotic_cell_type_index = -1;
+int dnase_substrate_index = -1;
+int il10_substrate_index = -1;
+int prey_apoptosis_index = -1; // Index for the prey's apoptosis death model
+
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// create_cell_types function
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 void create_cell_types( void )
+{
+  // set the random seed
+  if (parameters.ints.find_index("random_seed") != -1) { SeedRandom(parameters.ints("random_seed")); }
+  else { SeedRandom(); }
+
+  initialize_default_cell_definition();
+  cell_defaults.functions.volume_update_function = standard_volume_update_function;
+  cell_defaults.functions.update_velocity = standard_update_cell_velocity;
+  cell_defaults.functions.update_phenotype = NULL;
+  cell_defaults.functions.custom_cell_rule = NULL;
+  cell_defaults.functions.add_cell_basement_membrane_interactions = NULL;
+  cell_defaults.functions.calculate_distance_to_membrane = NULL;
+
+  initialize_cell_definitions_from_pugixml();
+
+  cell_defaults.functions.update_phenotype = phenotype_function;
+  cell_defaults.functions.custom_cell_rule = custom_function;
+
+  Cell_Definition* pPreyDef = find_cell_definition( "S_aureus_biofilm" );
+  Cell_Definition* pPredDef = find_cell_definition( "probiotic_E_coli" );
+
+  bool prey_def_found = (pPreyDef != NULL);
+  bool pred_def_found = (pPredDef != NULL);
+
+  if(prey_def_found) {
+    pPreyDef->functions.custom_cell_rule = prey_custom_function;
+    pPreyDef->functions.update_phenotype = prey_phenotype_function;
+    pPreyDef->functions.update_migration_bias = prey_motility_function;
+    biofilm_cell_type_index = pPreyDef->type;
+    prey_apoptosis_index = pPreyDef->phenotype.death.find_death_model_index("apoptosis");
+    if (prey_apoptosis_index < 0) { std::cerr << "Warning: Apoptosis death model not found for S_aureus_biofilm!" << std::endl; }
+  } else { std::cerr << "ERROR: Could not find Cell_Definition for S_aureus_biofilm!" << std::endl; }
+
+  if(pred_def_found) {
+    pPredDef->functions.custom_cell_rule = predator_custom_function;
+    pPredDef->functions.update_phenotype = predator_phenotype_function;
+    pPredDef->functions.update_migration_bias = predator_motility_function;
+    probiotic_cell_type_index = pPredDef->type;
+  } else { std::cerr << "ERROR: Could not find Cell_Definition for probiotic_E_coli!" << std::endl; }
+
+  build_cell_definitions_maps();
+  setup_signal_behavior_dictionaries();
+  setup_cell_rules();
+  display_cell_definitions( std::cout );
+
+  return;
+}
+void create_cell_types1( void )
 {
   // set the random seed
   if (parameters.ints.find_index("random_seed") != -1)
   {
     SeedRandom(parameters.ints("random_seed"));
+  } else {
+    SeedRandom(); // Seed with default if not specified
   }
-
-  /*
-     Put any modifications to default cell definition here if you
-     want to have "inherited" by other cell types.
-
-     This is a good place to set default functions.
-     */
 
   initialize_default_cell_definition();
 
   cell_defaults.functions.volume_update_function = standard_volume_update_function;
   cell_defaults.functions.update_velocity = standard_update_cell_velocity;
-
-  cell_defaults.functions.update_migration_bias = weighted_motility_function;
-  cell_defaults.functions.update_phenotype = NULL; // update_cell_and_death_parameters_O2_based;
+  cell_defaults.functions.update_phenotype = NULL;
   cell_defaults.functions.custom_cell_rule = NULL;
-
   cell_defaults.functions.add_cell_basement_membrane_interactions = NULL;
   cell_defaults.functions.calculate_distance_to_membrane = NULL;
 
-  /*
-     This parses the cell definitions in the XML config file.
-     */
-
   initialize_cell_definitions_from_pugixml();
-
-  /*
-     Put any modifications to individual cell definitions here.
-
-     This is a good place to set custom functions.
-     */
 
   cell_defaults.functions.update_phenotype = phenotype_function;
   cell_defaults.functions.custom_cell_rule = custom_function;
 
-  Cell_Definition* pFarmerDef = find_cell_definition( "farmer" );
-  Cell_Definition* pPreyDef = find_cell_definition( "prey" );
-  Cell_Definition* pPredDef = find_cell_definition( "predator" );
+  Cell_Definition* pPreyDef = find_cell_definition( "S_aureus_biofilm" );
+  Cell_Definition* pPredDef = find_cell_definition( "probiotic_E_coli" );
 
-  pFarmerDef->functions.custom_cell_rule = farmer_custom_function;
-  // pFarmerDef->functions.update_phenotype = prey_phenotype_function;
-  // pFarmerDef->functions.update_migration_bias = prey_motility_function;
+  bool prey_def_found = (pPreyDef != NULL);
+  bool pred_def_found = (pPredDef != NULL);
 
-  pPreyDef->functions.custom_cell_rule = prey_custom_function;
-  pPreyDef->functions.update_phenotype = prey_phenotype_function;
-  pPreyDef->functions.update_migration_bias = prey_motility_function;
+  // Assign functions and store indices for S_aureus_biofilm (Prey)
+  if(prey_def_found)
+  {
+    pPreyDef->functions.custom_cell_rule = prey_custom_function;
+    pPreyDef->functions.update_phenotype = prey_phenotype_function;
+    pPreyDef->functions.update_migration_bias = prey_motility_function;
+    biofilm_cell_type_index = pPreyDef->type; // Store index
+                                              // *** Get the apoptosis model index for the prey ***
+    prey_apoptosis_index = pPreyDef->phenotype.death.find_death_model_index("apoptosis");
+    if (prey_apoptosis_index < 0) {
+      std::cerr << "Warning: Apoptosis death model not found for S_aureus_biofilm!" << std::endl;
+    }
+  }
+  else
+  {
+    std::cerr << "ERROR: Could not find Cell_Definition for S_aureus_biofilm!" << std::endl;
+  }
 
-  pPredDef->functions.custom_cell_rule = predator_custom_function;
-  pPredDef->functions.update_phenotype = predator_phenotype_function;
-  pPredDef->functions.update_migration_bias = predator_motility_function;
-
-  /*
-     This builds the map of cell definitions and summarizes the setup.
-     */
+  // Assign functions and store index for probiotic_E_coli (Predator)
+  if(pred_def_found)
+  {
+    pPredDef->functions.custom_cell_rule = predator_custom_function;
+    pPredDef->functions.update_phenotype = predator_phenotype_function;
+    pPredDef->functions.update_migration_bias = predator_motility_function;
+    probiotic_cell_type_index = pPredDef->type; // Store index
+  }
+  else
+  {
+    std::cerr << "ERROR: Could not find Cell_Definition for probiotic_E_coli!" << std::endl;
+  }
 
   build_cell_definitions_maps();
-
-  /*
-     This intializes cell signal and response dictionaries
-     */
-
   setup_signal_behavior_dictionaries();
-
-  /*
-     Cell rule definitions
-     */
-
   setup_cell_rules();
-
-
   display_cell_definitions( std::cout );
 
   return;
 }
 
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// setup_microenvironment function
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 void setup_microenvironment( void )
 {
-  // set domain parameters
-
-  // put any custom code to set non-homogeneous initial conditions or
-  // extra Dirichlet nodes here.
-
-  // initialize BioFVM
+  if( default_microenvironment_options.simulate_2D == true ) {
+    std::cout << "Warning: overriding XML config options with 2D defaults!\n";
+    default_microenvironment_options.X_range = {-500, 500};
+    default_microenvironment_options.Y_range = {-500, 500};
+    default_microenvironment_options.simulate_2D = true;
+  }
 
   initialize_microenvironment();
+
+  // *** Get substrate indices ***
+  glucose_substrate_index = microenvironment.find_density_index("glucose");
+  dnase_substrate_index = microenvironment.find_density_index("dnase");   // *** NEW ***
+  il10_substrate_index = microenvironment.find_density_index("il10");    // *** NEW ***
+
+  // Check if indices were found
+  if (glucose_substrate_index < 0) { std::cerr << "ERROR: Could not find microenvironment density 'glucose'!" << std::endl; }
+  if (dnase_substrate_index < 0) { std::cerr << "ERROR: Could not find microenvironment density 'dnase'!" << std::endl; }
+  if (il10_substrate_index < 0) { std::cerr << "ERROR: Could not find microenvironment density 'il10'!" << std::endl; }
+
+  return;
+}
+void setup_microenvironment1( void )
+{
+  if( default_microenvironment_options.simulate_2D == true )
+  {
+    std::cout << "Warning: overriding XML config options with 2D defaults!\n";
+    default_microenvironment_options.X_range = {-500, 500};
+    default_microenvironment_options.Y_range = {-500, 500};
+    default_microenvironment_options.simulate_2D = true;
+  }
+
+  initialize_microenvironment();
+
+  glucose_substrate_index = microenvironment.find_density_index("glucose");
+  if (glucose_substrate_index < 0) {
+    std::cerr << "ERROR: Could not find microenvironment density 'glucose'!" << std::endl;
+  }
 
   return;
 }
 
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// setup_tissue function
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 void setup_tissue( void )
 {
   double Xmin = microenvironment.mesh.bounding_box[0];
   double Ymin = microenvironment.mesh.bounding_box[1];
   double Zmin = microenvironment.mesh.bounding_box[2];
-
   double Xmax = microenvironment.mesh.bounding_box[3];
   double Ymax = microenvironment.mesh.bounding_box[4];
   double Zmax = microenvironment.mesh.bounding_box[5];
-
-  if( default_microenvironment_options.simulate_2D == true )
-  {
-    Zmin = 0.0;
-    Zmax = 0.0;
-  }
-
+  if( default_microenvironment_options.simulate_2D == true ) { Zmin = 0.0; Zmax = 0.0; }
   double Xrange = Xmax - Xmin;
   double Yrange = Ymax - Ymin;
   double Zrange = Zmax - Zmin;
 
-  // create some of each type of cell
-
   Cell* pC;
 
-  // place farmers
-  Cell_Definition* pCD = find_cell_definition( "farmer");
-  std::cout << "Placing cells of type " << pCD->name << " ... " << std::endl;
-  for( int n = 0 ; n < parameters.ints("number_of_farmers") ; n++ )
-  {
-    std::vector<double> position = {0,0,0};
-    position[0] = Xmin + UniformRandom()*Xrange;
-    position[1] = Ymin + UniformRandom()*Yrange;
-    position[2] = Zmin + UniformRandom()*Zrange;
-
-    pC = create_cell( *pCD );
-    pC->assign_position( position );
+  // place prey (S_aureus_biofilm)
+  Cell_Definition* pCD_Prey = find_cell_definition( "S_aureus_biofilm");
+  if (!pCD_Prey) {
+    std::cerr << "ERROR: Could not find Cell_Definition for S_aureus_biofilm during tissue setup!" << std::endl;
+  } else {
+    std::cout << "Placing cells of type " << pCD_Prey->name << " ... " << std::endl;
+    for( int n = 0 ; n < parameters.ints("number_of_biofilm_cells") ; n++ ) {
+      std::vector<double> position = {0,0,0};
+      position[0] = Xmin + UniformRandom()*Xrange;
+      position[1] = Ymin + UniformRandom()*Yrange;
+      position[2] = Zmin + UniformRandom()*Zrange;
+      pC = create_cell( *pCD_Prey );
+      pC->assign_position( position );
+    }
   }
 
-  // place prey
-  pCD = find_cell_definition( "prey");
-  std::cout << "Placing cells of type " << pCD->name << " ... " << std::endl;
-  for( int n = 0 ; n < parameters.ints("number_of_prey") ; n++ )
-  {
-    std::vector<double> position = {0,0,0};
-    position[0] = Xmin + UniformRandom()*Xrange;
-    position[1] = Ymin + UniformRandom()*Yrange;
-    position[2] = Zmin + UniformRandom()*Zrange;
-
-    pC = create_cell( *pCD );
-    pC->assign_position( position );
+  // place predators (probiotic_E_coli)
+  Cell_Definition* pCD_Pred = find_cell_definition( "probiotic_E_coli");
+  if (!pCD_Pred) {
+    std::cerr << "ERROR: Could not find Cell_Definition for probiotic_E_coli during tissue setup!" << std::endl;
+  } else {
+    std::cout << "Placing cells of type " << pCD_Pred->name << " ... " << std::endl;
+    for( int n = 0 ; n < parameters.ints("number_of_probiotic_cells") ; n++ ) {
+      std::vector<double> position = {0,0,0};
+      position[0] = Xmin + UniformRandom()*Xrange;
+      position[1] = Ymin + UniformRandom()*Yrange;
+      position[2] = Zmin + UniformRandom()*Zrange;
+      pC = create_cell( *pCD_Pred );
+      pC->assign_position( position );
+    }
   }
 
-  // place predators
-  pCD = find_cell_definition( "predator");
-  std::cout << "Placing cells of type " << pCD->name << " ... " << std::endl;
-  for( int n = 0 ; n < parameters.ints("number_of_predators") ; n++ )
-  {
-    std::vector<double> position = {0,0,0};
-    position[0] = Xmin + UniformRandom()*Xrange;
-    position[1] = Ymin + UniformRandom()*Yrange;
-    position[2] = Zmin + UniformRandom()*Zrange;
-
-    pC = create_cell( *pCD );
-    pC->assign_position( position );
-  }
-
-  /*
-     std::cout << std::endl;
-
-     fill_rectangle( {0,0,0,200,100,0} , cell_definitions_by_index[0] , 0.9 );
-
-     fill_circle( {-143,-100,0} , 150 , 1 , 0.95 );
-
-     draw_line( {-137,132,0} , {217,194,0} , 2 , 0.9 );
-
-     fill_annulus( {300,300,0} , 150, 90 , 0 , 0.75 );
-     */
-  // XML-based cell placement as needed
   load_cells_from_pugixml();
-
   return;
 }
 
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// my_coloring_function
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 std::vector<std::string> my_coloring_function( Cell* pCell )
 {
-  static Cell_Definition* pFarmerDef = find_cell_definition( "farmer" );
-  static Cell_Definition* pPreyDef = find_cell_definition( "prey" );
-  static Cell_Definition* pPredDef = find_cell_definition( "predator" );
-
-  if( pCell->type == pFarmerDef->type )
-  { return { "grey", "black", "grey", "grey" }; }
-
-  if( pCell->type == pPreyDef->type )
-  { return { "blue", "black", "blue", "blue" }; }
-
-  if( pCell->type == pPredDef->type )
-  { return { "orange", "black", "orange", "orange" }; }
-
+  if( pCell->type == biofilm_cell_type_index ) { return { "red", "black", "darkred", "darkred" }; }
+  if( pCell->type == probiotic_cell_type_index ) { return { "lime", "black", "darkgreen", "darkgreen" }; }
   return paint_by_number_cell_coloring(pCell);
 }
 
-void phenotype_function( Cell* pCell, Phenotype& phenotype, double dt )
-{ return; }
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// phenotype_function (Default - likely unused)
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+void phenotype_function( Cell* pCell, Phenotype& phenotype, double dt ) { return; }
 
-void custom_function( Cell* pCell, Phenotype& phenotype , double dt )
-{ return; }
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// custom_function (Default - likely unused)
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+void custom_function( Cell* pCell, Phenotype& phenotype , double dt ) { return; }
 
-/* some help */
-
-void weighted_motility_function( Cell* pCell, Phenotype& phenotype, double dt )
-{
-  // find the indices for each major substrate
-  static int prey_index = microenvironment.find_density_index( "prey signal");
-  static int predator_index = microenvironment.find_density_index( "predator signal");
-  static int food_index = microenvironment.find_density_index( "food");
-
-  // zero out the motility bias direction. use a pointer to make this easier
-  std::vector<double>* pV = &phenotype.motility.migration_bias_direction;
-  (*pV) = {0,0,0}; // pCell->position;
-                   //*pV *= -0.00001;
-
-                   // v += prey_weight * grad(prey)
-  axpy( pV, pCell->custom_data["prey_weight"] , pCell->nearest_gradient(prey_index) );
-  // v += predator_weight * grad(predator)
-  axpy( pV, pCell->custom_data["predator_weight"] , pCell->nearest_gradient(predator_index) );
-  // v += food_weight * grad(food)
-  axpy( pV, pCell->custom_data["food_weight"] , pCell->nearest_gradient(food_index) );
-
-  normalize( pV );
-}
-
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Helper: avoid_boundaries (As provided in the file)
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 void avoid_boundaries( Cell* pCell )
 {
-  // add velocity to steer clear of the boundaries
   static double Xmin = microenvironment.mesh.bounding_box[0];
   static double Ymin = microenvironment.mesh.bounding_box[1];
   static double Zmin = microenvironment.mesh.bounding_box[2];
-
   static double Xmax = microenvironment.mesh.bounding_box[3];
   static double Ymax = microenvironment.mesh.bounding_box[4];
   static double Zmax = microenvironment.mesh.bounding_box[5];
-
   static double avoid_zone = 25;
-  static double avoid_speed = -0.5; // must be negative
-
-  // near edge:
+  static double avoid_speed = -0.5;
   bool near_edge = false;
-  if( pCell->position[0] < Xmin + avoid_zone || pCell->position[0] > Xmax - avoid_zone )
-  { near_edge = true; }
-
-  if( pCell->position[1] < Ymin + avoid_zone || pCell->position[1] > Ymax - avoid_zone )
-  { near_edge = true; }
-
-  if( default_microenvironment_options.simulate_2D == false )
-  {
-    if( pCell->position[2] < Zmin + avoid_zone || pCell->position[2] > Zmax - avoid_zone )
-    { near_edge = true; }
+  if( pCell->position[0] < Xmin + avoid_zone || pCell->position[0] > Xmax - avoid_zone ) { near_edge = true; }
+  if( pCell->position[1] < Ymin + avoid_zone || pCell->position[1] > Ymax - avoid_zone ) { near_edge = true; }
+  if( default_microenvironment_options.simulate_2D == false ) {
+    if( pCell->position[2] < Zmin + avoid_zone || pCell->position[2] > Zmax - avoid_zone ) { near_edge = true; }
   }
-
-  if( near_edge )
-  {
-    pCell->velocity = pCell->position; // move towards origin
-    pCell->velocity *= avoid_speed; // move towards origin
-  }
-
+  if( near_edge ) { pCell->velocity = pCell->position; pCell->velocity *= avoid_speed; }
   return;
 }
 
-void wrap_boundaries( Cell* pCell )
-{
-  return avoid_boundaries( pCell );
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Helper: wrap_boundaries (Calls avoid_boundaries in the provided file)
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+void wrap_boundaries( Cell* pCell ) { return avoid_boundaries( pCell ); }
 
-  // add velocity to steer clear of the boundaries
-  static double Xmin = microenvironment.mesh.bounding_box[0];
-  static double Ymin = microenvironment.mesh.bounding_box[1];
-  static double Zmin = microenvironment.mesh.bounding_box[2];
-
-  static double Xmax = microenvironment.mesh.bounding_box[3];
-  static double Ymax = microenvironment.mesh.bounding_box[4];
-  static double Zmax = microenvironment.mesh.bounding_box[5];
-
-  static double avoid_zone = 20;
-
-  static bool setup_done = false;
-  if( setup_done == false )
-  {
-    Xmax -= avoid_zone;
-    Xmin += avoid_zone;
-
-    Ymax -= avoid_zone;
-    Ymin += avoid_zone;
-
-    setup_done = true;
-  }
-
-  bool wrapped = false;
-
-  std::vector<double> p = pCell->position;
-  double Delta;
-
-
-  while( p[0] < Xmin )
-  {
-    Delta = Xmin - p[0];
-    p[0] = Xmax - Delta;
-    wrapped = true;
-  }
-  while( p[0] > Xmax )
-  {
-    Delta = p[0] - Xmax;
-    p[0] = Xmin + Delta;
-    wrapped = true;
-  }
-
-  while( p[1] < Ymin )
-  {
-    Delta = Ymin - p[1];
-    p[1] = Ymax - Delta;
-    wrapped = true;
-  }
-  while( p[1] > Ymax )
-  {
-    Delta = p[1] - Ymax;
-    p[1] = Ymin + Delta;
-    wrapped = true;
-  }
-
-  if( default_microenvironment_options.simulate_2D == false )
-  {
-    while( p[2] < Zmin )
-    {
-      Delta = Zmin - p[2];
-      p[2] = Zmax - Delta;
-      wrapped = true;
-    }
-    while( p[2] > Zmax )
-    {
-      Delta = p[2] - Zmax;
-      p[2] = Zmin + Delta;
-      wrapped = true;
-    }
-  }
-
-  if( wrapped == true )
-  {
-#pragma omp critical
-    { pCell->assign_position( p ); }
-  }
-  return;
-}
-
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Helper: get_possible_neighbors (As provided in the file)
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 std::vector<Cell*> get_possible_neighbors( Cell* pCell)
 {
   std::vector<Cell*> neighbors = {};
-
-  // First check the neighbors in my current voxel
   std::vector<Cell*>::iterator neighbor;
-  std::vector<Cell*>::iterator end =
-    pCell->get_container()->agent_grid[pCell->get_current_mechanics_voxel_index()].end();
-
-  for( neighbor = pCell->get_container()->agent_grid[pCell->get_current_mechanics_voxel_index()].begin(); neighbor != end; ++neighbor)
-  { neighbors.push_back( *neighbor ); }
-
+  std::vector<Cell*>::iterator end = pCell->get_container()->agent_grid[pCell->get_current_mechanics_voxel_index()].end();
+  for( neighbor = pCell->get_container()->agent_grid[pCell->get_current_mechanics_voxel_index()].begin(); neighbor != end; ++neighbor) { neighbors.push_back( *neighbor ); }
   std::vector<int>::iterator neighbor_voxel_index;
-  std::vector<int>::iterator neighbor_voxel_index_end
-    = pCell->get_container()->underlying_mesh.moore_connected_voxel_indices[pCell->get_current_mechanics_voxel_index()].end();
-
-  for( neighbor_voxel_index = pCell->get_container()->underlying_mesh.moore_connected_voxel_indices[pCell->get_current_mechanics_voxel_index()].begin(); neighbor_voxel_index!= neighbor_voxel_index_end; ++neighbor_voxel_index)
-  {
-    if(!is_neighbor_voxel(pCell, pCell->get_container()->underlying_mesh.voxels[pCell->get_current_mechanics_voxel_index()].center, pCell->get_container()->underlying_mesh.voxels[*neighbor_voxel_index].center, *neighbor_voxel_index))
-      continue;
+  std::vector<int>::iterator neighbor_voxel_index_end = pCell->get_container()->underlying_mesh.moore_connected_voxel_indices[pCell->get_current_mechanics_voxel_index()].end();
+  for( neighbor_voxel_index = pCell->get_container()->underlying_mesh.moore_connected_voxel_indices[pCell->get_current_mechanics_voxel_index()].begin(); neighbor_voxel_index!= neighbor_voxel_index_end; ++neighbor_voxel_index) {
+    if(!is_neighbor_voxel(pCell, pCell->get_container()->underlying_mesh.voxels[pCell->get_current_mechanics_voxel_index()].center, pCell->get_container()->underlying_mesh.voxels[*neighbor_voxel_index].center, *neighbor_voxel_index)) continue;
     end = pCell->get_container()->agent_grid[*neighbor_voxel_index].end();
-    for(neighbor = pCell->get_container()->agent_grid[*neighbor_voxel_index].begin();neighbor != end; ++neighbor)
-    { neighbors.push_back( *neighbor ); }
+    for(neighbor = pCell->get_container()->agent_grid[*neighbor_voxel_index].begin();neighbor != end; ++neighbor) { neighbors.push_back( *neighbor ); }
   }
   return neighbors;
 }
 
-/* prey functions */
-
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Prey (S_aureus_biofilm) functions
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 void prey_phenotype_function( Cell* pCell, Phenotype& phenotype, double dt )
 {
-  // sample food
-  static int nFood = microenvironment.find_density_index("food");
-  double food = pCell->nearest_density_vector()[nFood];
+  if (glucose_substrate_index < 0) { return; } // Safety check
+  double glucose = pCell->nearest_density_vector()[glucose_substrate_index];
 
-  // death based on food
+  // death based on glucose
   static int nNecrosis = phenotype.death.find_death_model_index( "necrosis" );
-
-  if( food < 0.1 )
-  {
+  if (nNecrosis < 0) return; // Safety check
+  double necrosis_glucose_threshold = parameters.doubles("prey_necrosis_glucose_threshold");
+  if( glucose < necrosis_glucose_threshold ) {
     pCell->start_death( nNecrosis );
     pCell->functions.update_phenotype = NULL;
     return;
   }
 
-  // division based on food
-  static Cell_Definition* pCD = find_cell_definition( "prey" );
-  phenotype.cycle.data.exit_rate(0) = pCD->phenotype.cycle.data.exit_rate(0);
-  double multiplier = (food-0.1)/0.9;
-  phenotype.cycle.data.exit_rate(0) *= multiplier;
+  // division based on glucose
+  static Cell_Definition* pCD = find_cell_definition( "S_aureus_biofilm" );
+  if (!pCD) return; // Safety check
+  int cycle_start_phase_index = phenotype.cycle.current_phase_index();
+  if( cycle_start_phase_index != 0 ) { return; } // Only update exit rate for G0/G1 phase (index 0)
+
+  double base_exit_rate = pCD->phenotype.cycle.data.exit_rate(cycle_start_phase_index);
+  double division_glucose_threshold = parameters.doubles("prey_division_glucose_threshold");
+  double division_glucose_saturation = parameters.doubles("prey_division_glucose_saturation");
+  double multiplier = 0.0;
+  if (division_glucose_saturation > division_glucose_threshold) {
+    multiplier = (glucose - division_glucose_threshold) / (division_glucose_saturation - division_glucose_threshold);
+  }
+  if (multiplier < 0.0) multiplier = 0.0;
+  if (multiplier > 1.0) multiplier = 1.0;
+  phenotype.cycle.data.exit_rate(cycle_start_phase_index) = base_exit_rate * multiplier;
 
   return;
 }
 
-void prey_custom_function( Cell* pCell, Phenotype& phenotype, double dt )
-{
-  wrap_boundaries( pCell );
-}
+void prey_custom_function( Cell* pCell, Phenotype& phenotype, double dt ) { wrap_boundaries( pCell ); }
+void prey_motility_function( Cell* pCell, Phenotype& phenotype, double dt ) { return; }
 
-void prey_motility_function( Cell* pCell, Phenotype& phenotype, double dt )
-{
-  return weighted_motility_function(pCell, phenotype, dt );
-}
 
-/* predator functions */
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Predator (probiotic_E_coli) functions
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+// --- Phenotype function modified for Conditional Neighbor Death Trigger ---
 void predator_phenotype_function( Cell* pCell, Phenotype& phenotype, double dt )
 {
-  static Cell_Definition* pFarmerDef = find_cell_definition( "farmer" );
-  static Cell_Definition* pPreyDef = find_cell_definition( "prey" );
-  static Cell_Definition* pPredDef = find_cell_definition( "predator" );
-
-  // hunting
-
-  static double max_detection_distance = 2;
-
-  // see who is nearby
-
-  std::vector<Cell*> nearby = get_possible_neighbors( pCell);
-
-  for( int i=0 ; i < nearby.size() ; i++ )
+  // --- Safety Check: Ensure Indices are Valid ---
+  if( glucose_substrate_index < 0 || biofilm_cell_type_index < 0 || prey_apoptosis_index < 0 ||
+      dnase_substrate_index < 0 || il10_substrate_index < 0 ) // *** NEW: Check DNase/IL10 indices ***
   {
-    Cell* pC = nearby[i];
-    // is it prey ?
-
-    if( pC->type == pPreyDef->type )
+#pragma omp critical
     {
-      bool eat_it = true;
-      // in range?
-      std::vector<double> displacement = pC->position;
-      displacement -= pCell->position;
-      double distance = norm( displacement );
-      if( distance > pCell->phenotype.geometry.radius + pC->phenotype.geometry.radius
-          + max_detection_distance )
-      { eat_it = false; }
+      std::cerr << "ERROR: In predator_phenotype_function (Cell ID: " << pCell->ID
+        << "): Required index invalid! Skipping phenotype update." << std::endl;
+      std::cerr << "       glucose_idx=" << glucose_substrate_index
+        << ", biofilm_idx=" << biofilm_cell_type_index
+        << ", prey_apoptosis_idx=" << prey_apoptosis_index
+        << ", dnase_idx=" << dnase_substrate_index   // *** NEW ***
+        << ", il10_idx=" << il10_substrate_index     // *** NEW ***
+        << std::endl;
+    }
+    return; // Stop processing for this cell
+  }
 
-      // am I hungry?
+  // --- Get Parameters from XML ---
+  static double glucose_threshold = parameters.doubles( "glucose_threshold");
+  static double ph_threshold = parameters.doubles( "pH_threshold");
+  static double current_pH = parameters.doubles( "pH_condition"); // Global pH from XML
+  static double max_interaction_distance = parameters.doubles( "probiotic_interaction_distance");
+  // *** NEW: Get secretion rate parameters ***
+  static double dnase_secretion_rate_param = parameters.doubles( "dnase_secretion_rate" );
+  static double il10_secretion_rate_param = parameters.doubles( "il10_secretion_rate" );
 
-      if( eat_it == true )
-      {
-        // eat it!
-        pCell->ingest_cell( pC );
+  // --- Check Environmental Conditions ---
+  double local_glucose = pCell->nearest_density_vector()[glucose_substrate_index];
+  // Condition for KILLING (requires BOTH low pH and high glucose)
+  bool kill_conditions_met = ( local_glucose > glucose_threshold && current_pH < ph_threshold );
+  // Condition for DNase secretion (requires low pH)
+  bool dnase_condition_met = ( current_pH < ph_threshold );
+  // Condition for IL10 secretion (requires high glucose)
+  bool il10_condition_met = ( local_glucose > glucose_threshold );
 
-        // increase energy
-        pCell->custom_data["energy"] += 100;
+
+  // *** NEW: Update Secretion Rates based on conditions ***
+  // DNase secretion
+  if( dnase_condition_met ) {
+    phenotype.secretion.secretion_rates[dnase_substrate_index] = dnase_secretion_rate_param;
+  } else {
+    phenotype.secretion.secretion_rates[dnase_substrate_index] = 0.0;
+  }
+  // IL10 secretion
+  if( il10_condition_met ) {
+    phenotype.secretion.secretion_rates[il10_substrate_index] = il10_secretion_rate_param;
+  } else {
+    phenotype.secretion.secretion_rates[il10_substrate_index] = 0.0;
+  }
+
+
+  // --- Conditional Behavior: Trigger Apoptosis in Nearby Prey (if kill conditions met) ---
+  if( kill_conditions_met ) // Killing still requires BOTH conditions
+  {
+    std::vector<Cell*> neighbors = get_possible_neighbors( pCell);
+    for( Cell* pNeighbor : neighbors ) {
+      if (!pNeighbor || pNeighbor == pCell) { continue; }
+
+      if( pNeighbor->type == biofilm_cell_type_index && pNeighbor->phenotype.death.dead == false ) {
+        std::vector<double> displacement = pNeighbor->position; displacement -= pCell->position;
+        double distance_squared = norm_squared( displacement );
+        double interaction_radius = pCell->phenotype.geometry.radius + pNeighbor->phenotype.geometry.radius + max_interaction_distance;
+        double interaction_radius_squared = interaction_radius * interaction_radius;
+
+        if( distance_squared < interaction_radius_squared ) {
+          pNeighbor->start_death( prey_apoptosis_index );
+          // Optional logging (use omp critical if multi-threaded)
+          // #pragma omp critical
+          // { std::cout << "Time: " << PhysiCell_globals.current_time << " Probiotic " << pCell->ID << " triggered apoptosis in Biofilm " << pNeighbor->ID << std::endl; }
+          break; // Kill only one neighbor per predator per time step
+        }
       }
     }
   }
+  // --- End Conditional Killing Logic ---
 
-  // update energy
 
-  static double decay_rate = 0.00025;
-  pCell->custom_data["energy"] /= (1.0 + dt*decay_rate);
+  // --- Optional: Energy / Death logic ---
+  /* ... (remains commented out unless needed) ... */
 
-  // low energy kills
-
-  // death based on food
-  static int nNecrosis = phenotype.death.find_death_model_index( "necrosis" );
-
-  if( pCell->custom_data["energy"] < 0.1 )
+  return; // End of function
+}
+void predator_phenotype_function1( Cell* pCell, Phenotype& phenotype, double dt )
+{
+  // --- Safety Check: Ensure Indices are Valid ---
+  if( glucose_substrate_index < 0 || biofilm_cell_type_index < 0 || prey_apoptosis_index < 0 ) // Check apoptosis index too
   {
-    pCell->start_death( nNecrosis );
-    pCell->functions.update_phenotype = NULL;
-    return;
+#pragma omp critical
+    {
+      std::cerr << "ERROR: In predator_phenotype_function (Cell ID: " << pCell->ID
+        << "): Required index invalid! Skipping phenotype update." << std::endl;
+      std::cerr << "       glucose_idx=" << glucose_substrate_index
+        << ", biofilm_idx=" << biofilm_cell_type_index
+        << ", prey_apoptosis_idx=" << prey_apoptosis_index << std::endl;
+    }
+    return; // Stop processing for this cell
   }
 
+  // --- Get Parameters from XML ---
+  // Use parameters.doubles("name") syntax first, matching parameters.ints("name") usage
+  static double glucose_threshold = parameters.doubles( "glucose_threshold");
+  static double ph_threshold = parameters.doubles( "pH_threshold");
+  static double current_pH = parameters.doubles( "pH_condition"); // Global pH from XML
+  static double max_interaction_distance = parameters.doubles( "probiotic_interaction_distance");
 
-  // need energy to reproduce
+  // --- Check Environmental Conditions ---
+  double local_glucose = pCell->nearest_density_vector()[glucose_substrate_index];
+  bool conditions_met = ( local_glucose > glucose_threshold && current_pH < ph_threshold );
 
-  return;
+  // --- Conditional Behavior: Trigger Apoptosis in Nearby Prey ---
+  if( conditions_met )
+  {
+    // Conditions met: Find nearby prey cells and trigger their apoptosis
+
+    // Use the existing neighbor function from the provided file
+    std::vector<Cell*> neighbors = get_possible_neighbors( pCell);
+
+    for( Cell* pNeighbor : neighbors ) // Iterate using range-based for loop
+    {
+      // Safety check & ignore self
+      if (!pNeighbor || pNeighbor == pCell) { continue; }
+
+      // Check if the neighbor is a biofilm cell AND is currently alive
+      if( pNeighbor->type == biofilm_cell_type_index && pNeighbor->phenotype.death.dead == false )
+      {
+        // Check distance
+        std::vector<double> displacement = pNeighbor->position;
+        displacement -= pCell->position;
+        double distance_squared = norm_squared( displacement ); // Use squared distance
+
+        // Interaction radius = sum of radii + max_interaction_distance
+        double interaction_radius = pCell->phenotype.geometry.radius + pNeighbor->phenotype.geometry.radius + max_interaction_distance;
+        double interaction_radius_squared = interaction_radius * interaction_radius;
+
+        // If within interaction radius, trigger apoptosis
+        if( distance_squared < interaction_radius_squared )
+        {
+          // Trigger apoptosis in the neighbor cell
+          pNeighbor->start_death( prey_apoptosis_index );
+
+          // Optional: Logging
+#pragma omp critical
+          {
+            std::cout << "Time: " << PhysiCell_globals.current_time << " Probiotic " << pCell->ID
+              << " triggered apoptosis in Biofilm " << pNeighbor->ID << std::endl;
+          }
+
+          // Break the inner loop after triggering death for one neighbor
+          // This prevents one predator from killing multiple prey in the exact same time step.
+          // Adjust this if different behavior is desired.
+          break;
+
+        } // end if within distance
+      } // end if neighbor is correct type and alive
+    } // end for neighbors loop
+  } // end if conditions_met
+    // else: Conditions are not met, so this probiotic does not actively kill neighbors in this step.
+
+    // --- Optional: Original Energy / Death logic (Can be kept or removed) ---
+  /*
+     static double decay_rate = parameters.doubles("predator_energy_decay_rate");
+     if( pCell->custom_data.find("energy") != pCell->custom_data.end() ) {
+     pCell->custom_data["energy"] /= (1.0 + dt*decay_rate);
+     } else { pCell->custom_data["energy"] = parameters.doubles("predator_initial_energy"); }
+
+     static int nNecrosis = phenotype.death.find_death_model_index( "necrosis" );
+     if( nNecrosis >= 0 && pCell->custom_data["energy"] < parameters.doubles("predator_energy_death_threshold") )
+     { pCell->start_death( nNecrosis ); pCell->functions.update_phenotype = NULL; return; }
+     */
+
+  return; // End of function
 }
+
 
 void predator_custom_function( Cell* pCell, Phenotype& phenotype, double dt )
 {
-  static Cell_Definition* pFarmerDef = find_cell_definition( "farmer" );
-  static Cell_Definition* pPreyDef = find_cell_definition( "prey" );
-  static Cell_Definition* pPredDef = find_cell_definition( "predator" );
-
   wrap_boundaries( pCell );
-
   return;
 }
 
 void predator_motility_function( Cell* pCell, Phenotype& phenotype, double dt )
 {
-  return weighted_motility_function(pCell,phenotype,dt);
-}
-
-/* farmer functions */
-
-void farmer_custom_function( Cell* pCell, Phenotype& phenotype , double dt )
-{
-  return wrap_boundaries( pCell );
+  if (glucose_substrate_index >= 0 && parameters.bools("predator_chemotaxis_enabled") ) // Check if enabled
+  {
+    phenotype.motility.migration_bias_direction = pCell->nearest_gradient(glucose_substrate_index);
+    normalize( &(phenotype.motility.migration_bias_direction) );
+  }
+  else { phenotype.motility.migration_bias_direction = {0,0,0}; }
+  return;
 }

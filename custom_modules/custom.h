@@ -97,6 +97,7 @@ void prey_custom_function( Cell* pCell, Phenotype& phenotype, double dt );
 void prey_motility_function( Cell* pCell, Phenotype& phenotype, double dt );
 
 void predator_phenotype_function( Cell* pCell, Phenotype& phenotype, double dt );
+void probiotic_phenotype_function( Cell* pCell, Phenotype& phenotype, double dt );
 void predator_custom_function( Cell* pCell, Phenotype& phenotype, double dt );
 void predator_motility_function( Cell* pCell, Phenotype& phenotype, double dt );
 
