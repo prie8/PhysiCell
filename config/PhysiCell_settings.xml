@@ -104,7 +104,7 @@
       <phenotype>
         <cycle code="5" name="live">
           <phase_transition_rates units="1/min">
-            <rate start_index="0" end_index="0" fixed_duration="false">0.00035</rate>
+            <rate start_index="0" end_index="0" fixed_duration="false">0.0002</rate>
           </phase_transition_rates>
         </cycle>
         <death>
@@ -250,8 +250,8 @@
         </mechanics>
         <motility>
           <speed units="micron/min">4.0</speed>
-          <persistence_time units="min">5.0</persistence_time>
-          <migration_bias units="dimensionless">0.9</migration_bias>
+          <persistence_time units="min">10.0</persistence_time>
+          <migration_bias units="dimensionless">0.7</migration_bias>
           <options>
             <enabled>true</enabled>
             <use_2D>true</use_2D>
@@ -308,15 +308,15 @@
   </initial_conditions>
   <user_parameters>
     <random_seed type="int">0</random_seed>
-    <number_of_biofilm_cells type="int">500</number_of_biofilm_cells>
-    <number_of_probiotic_cells type="int">50</number_of_probiotic_cells>
+    <number_of_biofilm_cells type="int">800</number_of_biofilm_cells>
+    <number_of_probiotic_cells type="int">200</number_of_probiotic_cells>
     <glucose_threshold type="double">8.0</glucose_threshold>
     <pH_threshold type="double">6.0</pH_threshold>
     <pH_condition type="double">5.5</pH_condition>
-    <probiotic_interaction_distance type="double">0.5</probiotic_interaction_distance>
+    <probiotic_interaction_distance type="double">0.9</probiotic_interaction_distance>
     <dnase_secretion_rate type="double">0.1</dnase_secretion_rate>
     <il10_secretion_rate type="double">0.05</il10_secretion_rate>
-    <prey_necrosis_glucose_threshold type="double">0.001</prey_necrosis_glucose_threshold>
+    <prey_necrosis_glucose_threshold type="double">0.0</prey_necrosis_glucose_threshold>
     <prey_division_glucose_threshold type="double">0.1</prey_division_glucose_threshold>
     <prey_division_glucose_saturation type="double">1.0</prey_division_glucose_saturation>
     <predator_chemotaxis_enabled type="bool">true</predator_chemotaxis_enabled>
