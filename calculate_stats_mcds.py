@@ -2,11 +2,13 @@ import os
 import glob
 import numpy as np
 import pandas as pd
+import sys
 from pyMCDS import pyMCDS # Requires pyMCDS, numpy, pandas
 
 # --- Configuration ---
 # Set the path to your PhysiCell output directory
 output_directory = './output/' # Should be relative path from where script is run, or absolute path
+if len(sys.argv) > 1: output_directory = sys.argv[1]
 
 # Cell type IDs used in the simulation (Match your cell definitions in XML)
 biofilm_type_id = 0
