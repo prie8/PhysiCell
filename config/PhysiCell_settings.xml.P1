@@ -329,6 +329,6 @@
     <predator_boundary_buffer type="double">20.0</predator_boundary_buffer>
     <probiotic_max_distance_buffer type="double">30.0</probiotic_max_distance_buffer>
     <probiotic_confinement_speed type="double">5.0</probiotic_confinement_speed>
-    <probiotic_kill_probability type="double">0.013</probiotic_kill_probability>
+    <probiotic_kill_probability type="double">0.024</probiotic_kill_probability>
   </user_parameters>
 </PhysiCell_settings>
