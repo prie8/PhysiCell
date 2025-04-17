@@ -31,7 +31,7 @@ for ((i=1; i<=n; i++)); do
   # If the script exits the 'while' loop, the file was found.
   echo "[Run $i/$n] File '$FILENAME' found! Proceeding."
   echo "-----------------------------------------------------"
-  python calculate_stats_mcds.py $OUTNAME
+  python scripts/generate_stats_plots.py $OUTNAME
   mkdir -p "$OUTDIR/run$i"
   cp -a $OUTNAME "$OUTDIR/run$i"/.
   rm -Rf $OUTNAME/*
