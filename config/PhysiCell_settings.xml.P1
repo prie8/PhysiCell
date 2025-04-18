@@ -316,7 +316,6 @@
     <glucose_threshold type="double">7.0</glucose_threshold>
     <pH_threshold type="double">6.0</pH_threshold>
     <pH_condition type="double">5.5</pH_condition>
-    <probiotic_interaction_distance type="double">0.5</probiotic_interaction_distance>
     <dnase_secretion_rate type="double">0.1</dnase_secretion_rate>
     <il10_secretion_rate type="double">0.05</il10_secretion_rate>
     <prey_necrosis_glucose_threshold type="double">0.0</prey_necrosis_glucose_threshold>
@@ -329,6 +328,7 @@
     <predator_boundary_buffer type="double">20.0</predator_boundary_buffer>
     <probiotic_max_distance_buffer type="double">30.0</probiotic_max_distance_buffer>
     <probiotic_confinement_speed type="double">5.0</probiotic_confinement_speed>
-    <probiotic_kill_probability type="double">0.024</probiotic_kill_probability>
+    <probiotic_interaction_distance type="double">0.75</probiotic_interaction_distance>
+    <probiotic_kill_probability type="double">0.0245</probiotic_kill_probability>
   </user_parameters>
 </PhysiCell_settings>
