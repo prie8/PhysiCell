@@ -1,3 +1,5 @@
 - [Biocontainment Kill Switch](https://prie8.github.io/PhysiCell/scripts/Biocontainment%20Kill%20Switch.html)
   - Click Setup , then click Go
 - [All PhysiCell Sumulations Video](https://prie8.github.io/PhysiCell/scripts/all.mp4)
+- Detailed Plots and Graphs
+  - ![Detailed Plots and Graphs](https://prie8.github.io/PhysiCell/scripts/all.png)
